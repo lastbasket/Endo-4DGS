@@ -3,6 +3,10 @@
 <p align="center">
 
   <h1 align="center">Endo-4DGS: Endoscopic Monocular Scene Reconstruction with 4D Gaussian Splatting</h1>
+  <div align="center">
+    <h4>Yiming Huang *, Beilei Cui *, Long Bai *, Ziqi Guo, Mengya Xu, Hongliang Ren </h3>
+    <h3> Medical Image Computing and Computer Assisted Intervention (MICCAI) 2024 </h2>
+  </div>
   <div align="center"></div>
 </p>
 <p align="center">
