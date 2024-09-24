@@ -20,7 +20,7 @@ import torchvision
 from utils.general_utils import safe_state
 from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams, get_combined_args, ModelHiddenParams
-from gaussian_renderer import GaussianModel
+from scene import GaussianModel
 from time import time
 import open3d as o3d
 from utils.graphics_utils import fov2focal
@@ -35,12 +35,12 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     gtdepth_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt_depth")
     masks_path = os.path.join(model_path, name, "ours_{}".format(iteration), "masks")
     normal_path = os.path.join(model_path, name, "ours_{}".format(iteration), "normal")
-    uncertainty_path = os.path.join(model_path, name, "ours_{}".format(iteration), "uncertainty")
+    confidence_path = os.path.join(model_path, name, "ours_{}".format(iteration), "confidence")
     pcd_path = os.path.join(model_path, name, "ours_{}".format(iteration), "pcd")
 
     makedirs(render_path, exist_ok=True)
     makedirs(normal_path, exist_ok=True)
-    makedirs(uncertainty_path, exist_ok=True)
+    makedirs(confidence_path, exist_ok=True)
     makedirs(depth_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
     makedirs(gtdepth_path, exist_ok=True)
@@ -50,7 +50,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     render_images = []
     render_depths = []
     render_normal = []
-    uncertainty = []
+    confidence = []
     gt_list = []
     gt_depths = []
     mask_list = []
@@ -65,7 +65,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
                 render_depths.append(rendering["depth"])
                 render_images.append(rendering["render"].cpu())
                 render_normal.append(((rendering['normal']+1)/2).cpu())
-                uncertainty.append(rendering['uncertainty'].cpu())
+                confidence.append(rendering['confidence'].cpu())
 
                 if name in ["train", "test", "video"]:
                     gt = view.original_image[0:3, :, :]
@@ -80,17 +80,17 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     
     # import pdb; pdb.set_trace()
     count = 0
-    print("writing training images.")
+    print("writing images.")
     if len(gt_list) != 0:
         for image in tqdm(gt_list):
             torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
             count+=1
             
     count = 0
-    print("writing uncertainty.")
-    if len(uncertainty) != 0:
-        for image in tqdm(uncertainty):
-            torchvision.utils.save_image(image, os.path.join(uncertainty_path, '{0:05d}'.format(count) + ".png"))
+    print("writing confidence.")
+    if len(confidence) != 0:
+        for image in tqdm(confidence):
+            torchvision.utils.save_image(image, os.path.join(confidence_path, '{0:05d}'.format(count) + ".png"))
             count +=1
             
     count = 0

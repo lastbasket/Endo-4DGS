@@ -17,7 +17,7 @@
 ## TODO
 - [x] EndoNeRF
 - [ ] StereoMIS
-- [ ] Pretrained checkpoints
+- [x] Pretrained checkpoints
 
 
 ## Environments
@@ -82,6 +82,13 @@ More configurations can be found in arguments/$DATASET.py
 sh render.sh
 # Evaluation
 sh eval.sh
+```
+
+## Inferring the pretrained Gaussians
+Download [pretrained_gaussians](https://mycuhk-my.sharepoint.com/:u:/g/personal/1155209042_link_cuhk_edu_hk/ERUYhd6E4INEj2IwxREjZxIBNMU9iMozbnPEIcWse-pBbA?e=z05Cfw) and unzip in the project directory:
+```bash
+# Render the testing result e.g. endonerf/pulling
+python render.py --model_path pretrained_gaussians/endonerf/pulling --pc --skip_video --skip_train --configs arguments/endonerf.py
 ```
 
 
