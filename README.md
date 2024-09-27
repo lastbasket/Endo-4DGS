@@ -93,7 +93,18 @@ Download [pretrained_gaussians](https://mycuhk-my.sharepoint.com/:u:/g/personal/
 python render.py --model_path pretrained_gaussians/endonerf/pulling --pc --skip_video --skip_train --configs arguments/endonerf.py
 ```
 
-
+## Cite
+```
+@misc{huang2024endo4dgsendoscopicmonocularscene,
+      title={Endo-4DGS: Endoscopic Monocular Scene Reconstruction with 4D Gaussian Splatting}, 
+      author={Yiming Huang and Beilei Cui and Long Bai and Ziqi Guo and Mengya Xu and Mobarakol Islam and Hongliang Ren},
+      year={2024},
+      eprint={2401.16416},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2401.16416}, 
+}
+```
 ## Acknowledgement
 
 Thanks the authors for their works: [StereoMIS](https://arxiv.org/abs/2304.08023v1), [diff-gaussian-rasterization-depth](https://github.com/leo-frank/diff-gaussian-rasterization-depth), [EndoNeRF](https://github.com/med-air/EndoNeRF), [4DGaussians](https://github.com/hustvl/4DGaussians), [Depth-Anything-ONNX](https://github.com/fabio-sim/Depth-Anything-ONNX).
