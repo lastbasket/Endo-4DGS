@@ -4,8 +4,10 @@
 
   <h1 align="center">Endo-4DGS: Endoscopic Monocular Scene Reconstruction with 4D Gaussian Splatting</h1>
   <div align="center">
-    <h4>Yiming Huang *, Beilei Cui *, Long Bai *, Ziqi Guo, Mengya Xu, Hongliang Ren </h3>
+    <h4><a href="https://lastbasket.github.io/"><strong>Yiming Huang</strong></a> *, <a href="https://beileicui.github.io/"><strong>Beilei Cui</strong></a> *, <a href="https://longbai-cuhk.github.io/"><strong>Long Bai</strong></a> *, Ziqi Guo, <a href="https://xumengyaamy.github.io/"><strong>Mengya Xu</strong></a>, <a href="https://www.ee.cuhk.edu.hk/en-gb/people/academic-staff/professors/prof-ren-hongliang"><strong>Hongliang Ren</strong></a> </h3>
     <h3> Medical Image Computing and Computer Assisted Intervention (MICCAI) 2024 </h2>
+    <h3 align="center"> || <a href="https://arxiv.org/pdf/2401.16416">Paper</a> || <a href="https://arxiv.org/abs/2401.16416">Arxiv</a> || </h3>
+    <div align="center"></div>
   </div>
   <div align="center"></div>
 </p>
