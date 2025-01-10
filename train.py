@@ -306,11 +306,7 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
             ssim_loss = ssim(image_tensor, gt_image_tensor)
             loss += opt.lambda_dssim * (1.0-ssim_loss)
             
-        try:
-            loss.backward()
-        except:
-            print("cuda error, end training, reexecv program now.")
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+        loss.backward()
             
         if torch.isnan(loss).any():
             print("loss is nan,end training, reexecv program now.")
@@ -482,7 +478,6 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
         torch.cuda.empty_cache()
         # 
         validation_configs = ({'name': 'test', 'cameras' : [scene.getTestCameras()[idx % len(scene.getTestCameras())] for idx in range(10, 5000, 299)]},)#,
-                            #   {'name': 'train', 'cameras' : [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(10, 5000, 299)]})
 
         for config in validation_configs:
             if config['cameras'] and len(config['cameras']) > 0:
@@ -497,13 +492,6 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                         gt_image = torch.clamp(viewpoint["image"].to("cuda"), 0.0, 1.0)
                     else:
                         gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-                    # try:
-                    #     if tb_writer and (idx < 5):
-                    #         tb_writer.add_images(stage + "/"+config['name'] + "_view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
-                    #         if iteration == testing_iterations[0]:
-                    #             tb_writer.add_images(stage + "/"+config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image[None], global_step=iteration)
-                    # except:
-                    #     pass
 
                     mask = viewpoint.mask
                     if mask is not None:
@@ -511,8 +499,6 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                         image = image * mask
                         gt_image = gt_image * mask
                     
-                    # ssim_test += ssim(image.unsqueeze(0), gt_image.unsqueeze(0)).mean().double()
-                    # lpips_score_test += lpips_score(image, gt_image, net='alex', format='CHW').mean().double()
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image.unsqueeze(0), gt_image.unsqueeze(0)).mean().double()
 
@@ -530,10 +516,8 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
 
 
         if tb_writer:
-            # tb_writer.add_histogram(f"{stage}/scene/opacity_histogram", scene.gaussians.get_opacity, iteration)            
             tb_writer.add_scalar(f'{stage}/total_points', scene.gaussians.get_xyz.shape[0], iteration)
             tb_writer.add_scalar(f'{stage}/deformation_rate', scene.gaussians._deformation_table.sum()/scene.gaussians.get_xyz.shape[0], iteration)
-            # tb_writer.add_histogram(f"{stage}/scene/motion_histogram", scene.gaussians._deformation_accum.mean(dim=-1)/100, iteration,max_bins=500)
         
         torch.cuda.empty_cache()
 
@@ -545,8 +529,6 @@ def setup_seed(seed):
      torch.backends.cudnn.deterministic = True
 
 if __name__ == "__main__":
-    # Set up command line argument parser
-    # torch.set_default_tensor_type('torch.FloatTensor')
     torch.cuda.empty_cache()
     parser = ArgumentParser(description="Training script parameters")
     setup_seed(6666)
@@ -582,12 +564,7 @@ if __name__ == "__main__":
     network_gui.init(args.ip, args.port)
     
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    try:
-        training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, 
-                args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
-    except Exception:
-        traceback.print_exc()
-        print("cuda error, end training, reexecv program now.")
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, 
+            args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
     # All done
     print("\nTraining complete.")

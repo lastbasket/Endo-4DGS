@@ -122,6 +122,8 @@ def render(viewpoint_camera, gs, pipe, bg_color: torch.Tensor, scaling_modifier 
     
     normal_shs = shs_final.clone()
     normal_shs[:, 0, :3] = normal_sh
+    
+    
     normal_map, rad_norm, dep_norm, weight_norm = rasterizer(
         means3D = means3D_final,
         means2D = means2D,
