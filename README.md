@@ -95,15 +95,15 @@ python render.py --model_path pretrained_gaussians/endonerf/pulling --pc --skip_
 
 ## Cite
 ```
-@misc{huang2024endo4dgsendoscopicmonocularscene,
-      title={Endo-4DGS: Endoscopic Monocular Scene Reconstruction with 4D Gaussian Splatting}, 
-      author={Yiming Huang and Beilei Cui and Long Bai and Ziqi Guo and Mengya Xu and Mobarakol Islam and Hongliang Ren},
-      year={2024},
-      eprint={2401.16416},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2401.16416}, 
+@inproceedings{huang2024endo,
+  title={Endo-4dgs: Endoscopic monocular scene reconstruction with 4d gaussian splatting},
+  author={Huang, Yiming and Cui, Beilei and Bai, Long and Guo, Ziqi and Xu, Mengya and Islam, Mobarakol and Ren, Hongliang},
+  booktitle={International Conference on Medical Image Computing and Computer-Assisted Intervention},
+  pages={197--207},
+  year={2024},
+  organization={Springer}
 }
+
 ```
 ## Acknowledgement
 
