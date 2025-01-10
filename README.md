@@ -18,7 +18,7 @@
 
 ## TODO
 - [x] EndoNeRF
-- [ ] StereoMIS
+- [x] StereoMIS
 - [x] Pretrained checkpoints
 
 
@@ -63,6 +63,26 @@ The data structure is as follows:
     └── ...
 ```
 
+How to prepare stereomis:
+```
+# 1. unzip StereoMIS_0_0_1.zip to StereoMIS_0_0_1
+# 2. run the script
+bash prepare_stereomis.sh
+```
+```
+# 3. arrange the files as
+./data
+└── stereomis
+    └── split_1
+    │    │    └── images
+    │    │    └── poses_bounds.npy
+    │    │    └── ...
+```
+```
+# 4. you may also visualize the trajectory using
+cd stereomis
+python visualize_traj.py
+```
 ### Preparing the Pretrained Depths from Depth-Anything
 Download [depth_anything_vits14.onnx](https://github.com/fabio-sim/Depth-Anything-ONNX/releases) and place in:
 ./submodules/depth_anything/weights/depth_anything_vits14.onnx
