@@ -21,7 +21,7 @@ from utils.sh_utils import RGB2SH
 
 
 def render(viewpoint_camera, gs, pipe, bg_color: torch.Tensor, scaling_modifier = 1.0, \
-        override_color = None, stage="fine", cam_type=None, multi_scale=False, iteration=0):
+        override_color = None, stage="fine", cam_type=None, iteration=0):
     """
     Render the scene. 
     
@@ -62,7 +62,6 @@ def render(viewpoint_camera, gs, pipe, bg_color: torch.Tensor, scaling_modifier 
     norm_rasterizer = GaussianRasterizer(raster_settings=raster_settings)
     
     # add deformation to each points
-    # deformation = pc.get_deformation
     means2D = screenspace_points
     opacity = gs._opacity
     shs = gs.get_features
@@ -81,15 +80,12 @@ def render(viewpoint_camera, gs, pipe, bg_color: torch.Tensor, scaling_modifier 
     mask_deform = gs._deformation_table
     
     if stage == "coarse" :
-        # means3D_deform, scales_deform, rotations_deform, opacity_deform, shs_deform = means3D, scales, rotations, opacity, shs
         means3D_final, scales_final, rotations_final, opacity_final, shs_final = means3D, scales, rotations, opacity, shs
     else:
         means3D_final, scales_final, rotations_final, opacity_final, shs_final = gs._deformation(means3D, scales, 
                                                                 rotations, opacity, shs, time)
     # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
-    # shs = None
-    # print(viewpoint_camera.camera_center)
     colors_precomp = None
     if override_color is None:
         if pipe.convert_SHs_python:

@@ -58,9 +58,7 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
     use_smooth = pipe.use_smooth
     use_normal = pipe.use_normal
     use_confidence = pipe.use_confidence
-    multi_scale = hyper.multi_scale
     print('Init with pretrain:', mp.use_pretrain)
-    # print('Use multi scale:', multi_scale)
     print('Use depth l1:', use_depth)
     print('Use smooth:', use_smooth)
     print('Use normal:', use_normal)
@@ -128,7 +126,7 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
                 custom_cam, do_training, pipe.convert_SHs_python, pipe.compute_cov3D_python, keep_alive, scaling_modifer, ts = network_gui.receive()
                 if custom_cam != None:
                     net_image = render(custom_cam, gaussians, pipe, background, scaling_modifer, stage=stage, \
-                        cam_type=scene.dataset_type, multi_scale=multi_scale)["render"]
+                        cam_type=scene.dataset_type)["render"]
                     net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                 network_gui.send(net_image_bytes, mp.source_path)
                 if do_training and ((iteration < int(opt.iterations)) or not keep_alive):
@@ -178,8 +176,6 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
         visibility_filter_list = []
         viewspace_point_tensor_list = []
         gs_normal = []
-        if multi_scale:
-            multi_scale_result = []
         if use_confidence:
             confidences = []
         # ranking_loss = EdgeguidedRankingLoss(point_pairs=5000, alpha=0.8)
@@ -196,13 +192,11 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
             # result = o3d.t.pipelines.registration.icp(src_pcd, tgt_pcd, 5)
             # corr_set = result.correspondence_set.numpy()
             render_pkg = render(viewpoint_cam, gaussians, pipe, background, stage=stage, \
-                cam_type=scene.dataset_type, multi_scale=multi_scale, iteration=count)
+                cam_type=scene.dataset_type, iteration=count)
             image, viewspace_point_tensor, radii, depth = \
                 render_pkg["render"], render_pkg["viewspace_points"], \
                 render_pkg["radii"], render_pkg['depth']
             visibility_filter = radii>0
-            if multi_scale:
-                multi_scale_result.append(render_pkg['pool_result'])
             gt_depth = viewpoint_cam.depth.cuda()
             mask = viewpoint_cam.mask
 
@@ -283,19 +277,6 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
             loss += confidence_loss_img
             loss += confidence_loss_dep
             
-            
-        if multi_scale:
-            for i in range(len(gaussians.pool_list)):
-                current_imgs = torch.stack([result['img'][i] for result in multi_scale_result], dim=0)
-                current_deps = torch.stack([result['dep'][i] for result in multi_scale_result], dim=0)
-                current_imgs = current_imgs * mask_tensor
-                current_deps = current_deps * mask_tensor
-                gt_depth_avg = avg_filter(gt_depth_tensor)
-                gt_depth_avg = torch.nn.functional.interpolate(gt_depth_avg, current_deps.shape[2:4])
-
-                gd_loss = grad_loss(current_deps, gt_depth_avg, mask=mask_tensor)*grad_weight
-                loss += gd_loss
-
         if stage == "fine" and hyper.time_smoothness_weight != 0:
             # tv_loss = 0
             tv_loss = gaussians.compute_regulation(hyper.time_smoothness_weight, \
@@ -320,8 +301,6 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
                 loss_dict["Smooth"] = f"{sm_loss:.{4}f}"
             if opt.lambda_dssim != 0:
                 loss_dict["ssim"] = f"{ssim_loss:.{4}f}"
-            if multi_scale:
-                loss_dict["Grad"] = f"{gd_loss:.{4}f}"
             if use_normal:
                 loss_dict["Norm"] = f"{normal_loss:.{4}f}"
             if use_confidence:
@@ -351,8 +330,6 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
                     string_dict["Dep"] = f"{depth_loss:.{4}f}"
                 if use_smooth:
                     string_dict["Sm"] = f"{sm_loss:.{4}f}"
-                if multi_scale:
-                    string_dict["Grad"] = f"{gd_loss:.{4}f}"
                 if use_normal:
                     string_dict["Norm"] = f"{normal_loss:.{4}f}"
                 if use_confidence:
@@ -368,7 +345,7 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
             # Log and save
             # timer.pause()
             training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), \
-                testing_iterations, scene, render, [pipe, background], stage, scene.dataset_type, multi_scale)
+                testing_iterations, scene, render, [pipe, background], stage, scene.dataset_type)
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration, stage)
@@ -377,10 +354,7 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
                     or (iteration < 3000 and iteration % 50 == 49) \
                         or (iteration < 60000 and iteration %  100 == 99) :
                         render_training_image(scene, gaussians, [test_cams[iteration%len(test_cams)]], \
-                            render, pipe, background, stage+"test", iteration,timer.get_elapsed_time(),scene.dataset_type, multi_scale)
-                        # render_training_image(scene, gaussians, [train_cams[iteration%len(train_cams)]], \
-                        #     render, pipe, background, stage+"train", iteration,timer.get_elapsed_time(),scene.dataset_type, multi_scale)
-                    # total_images.append(to8b(temp_image).transpose(1,2,0))
+                            render, pipe, background, stage+"test", iteration,timer.get_elapsed_time(),scene.dataset_type)
             timer.start()
             
             # Densification
@@ -445,10 +419,6 @@ def training(model_param, hyper, opt, pipe, testing_iterations, saving_iteration
 
 def prepare_output_and_logger(expname):    
     if not args.model_path:
-        # if os.getenv('OAR_JOB_ID'):
-        #     unique_str=os.getenv('OAR_JOB_ID')
-        # else:
-        #     unique_str = str(uuid.uuid4())
         unique_str = expname
 
         args.model_path = os.path.join("./output/", unique_str)
@@ -466,7 +436,7 @@ def prepare_output_and_logger(expname):
         print("Tensorboard not available: not logging progress")
     return tb_writer
 
-def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs, stage, dataset_type, multi_scale):
+def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs, stage, dataset_type):
     if tb_writer:
         tb_writer.add_scalar(f'{stage}/train_loss_patches/l1_loss', Ll1.item(), iteration)
         tb_writer.add_scalar(f'{stage}/train_loss_patchestotal_loss', loss.item(), iteration)
@@ -487,7 +457,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                 ssim_test = 0.0
 
                 for idx, viewpoint in enumerate(config['cameras']):
-                    image = torch.clamp(renderFunc(viewpoint, scene.gaussians,stage=stage, cam_type=dataset_type, *renderArgs, multi_scale=multi_scale)["render"], 0.0, 1.0)
+                    image = torch.clamp(renderFunc(viewpoint, scene.gaussians,stage=stage, cam_type=dataset_type, *renderArgs)["render"], 0.0, 1.0)
                     if dataset_type == "PanopticSports":
                         gt_image = torch.clamp(viewpoint["image"].to("cuda"), 0.0, 1.0)
                     else:

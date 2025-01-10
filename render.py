@@ -156,7 +156,7 @@ def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : P
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
         
         if not skip_train:
-            render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background, reconstrcut=pc)
+            render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background, reconstruct=pc)
         if not skip_test:
             render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background, reconstruct=pc)
         if not skip_video:
@@ -166,7 +166,6 @@ def reconstruct_point_cloud(images, masks, depths, camera_parameters, name, pcd_
     import cv2
     import copy
     frames = np.arange(len(images))
-    # frames = [0]
     focal_x, focal_y, width, height = camera_parameters
     for i_frame in frames:
         rgb_tensor = images[i_frame]

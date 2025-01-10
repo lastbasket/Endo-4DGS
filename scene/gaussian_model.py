@@ -26,7 +26,6 @@ from utils.general_utils import strip_symmetric, build_scaling_rotation, build_r
 # from utils.point_utils import addpoint, combine_pointcloud, downsample_point_cloud_open3d, find_indices_in_A
 from scene.deformation import deform_network
 from scene.regulation import compute_plane_smoothness
-from scene.distill import DistillModule, PoolingModule
 
 
 class GaussianModel:
@@ -55,8 +54,6 @@ class GaussianModel:
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
         self._deformation = deform_network(args)
-        self.multi_scale = args.multi_scale
-        # self.grid = TriPlaneGrid()
         self._features_dc = torch.empty(0)
         self._features_rest = torch.empty(0)
         self._scaling = torch.empty(0)
@@ -70,9 +67,6 @@ class GaussianModel:
         self.spatial_lr_scale = 0
         self._deformation_table = torch.empty(0)
         self.setup_functions()
-        self.distill_net = DistillModule(3, 1).cuda()
-        self.pool_list = [2]
-        self.pool_net = PoolingModule(self.pool_list).cuda()
    
     def capture(self):
         return (
@@ -161,7 +155,6 @@ class GaussianModel:
 
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
         self._deformation = self._deformation.to("cuda") 
-        # self.grid = self.grid.to("cuda")
         self._features_dc = nn.Parameter(features[:,:,0:1].transpose(1, 2).contiguous().requires_grad_(True))
         self._features_rest = nn.Parameter(features[:,:,1:].transpose(1, 2).contiguous().requires_grad_(True))
         self._scaling = nn.Parameter(scales.contiguous().requires_grad_(True))
@@ -238,9 +231,11 @@ class GaussianModel:
         deform = self._deformation[:,:,:time].sum(dim=-1)
         xyz = self._xyz + deform
         return xyz
+    
     # def save_ply_dynamic(path):
     #     for time in range(self._deformation.shape(-1)):
     #         xyz = self.compute_deformation(time)
+    
     def load_model(self, path):
         print("loading model from exists{}".format(path))
         weight_dict = torch.load(os.path.join(path,"deformation.pth"),map_location="cuda")
@@ -253,11 +248,12 @@ class GaussianModel:
         if os.path.exists(os.path.join(path, "deformation_accum.pth")):
             self._deformation_accum = torch.load(os.path.join(path, "deformation_accum.pth"),map_location="cuda")
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
-        # print(self._deformation.deformation_net.grid.)
+        
     def save_deformation(self, path):
         torch.save(self._deformation.state_dict(),os.path.join(path, "deformation.pth"))
         torch.save(self._deformation_table,os.path.join(path, "deformation_table.pth"))
         torch.save(self._deformation_accum,os.path.join(path, "deformation_accum.pth"))
+        
     def save_ply(self, path):
         mkdir_p(os.path.dirname(path))
 
@@ -405,7 +401,6 @@ class GaussianModel:
         "opacity": new_opacities,
         "scaling" : new_scaling,
         "rotation" : new_rotation,
-        # "deformation": new_deformation
        }
 
         optimizable_tensors = self.cat_tensors_to_optimizer(d)
@@ -415,7 +410,6 @@ class GaussianModel:
         self._opacity = optimizable_tensors["opacity"]
         self._scaling = optimizable_tensors["scaling"]
         self._rotation = optimizable_tensors["rotation"]
-        # self._deformation = optimizable_tensors["deformation"]
         
         self._deformation_table = torch.cat([self._deformation_table,new_deformation_table],-1)
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
@@ -454,26 +448,6 @@ class GaussianModel:
     def densify_and_clone(self, grads, grad_threshold, scene_extent, density_threshold=20, displacement_scale=20, model_path=None, iteration=None, stage=None):
         grads_accum_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
         
-        # 主动增加稀疏点云
-        # if not hasattr(self,"voxel_size"):
-        #     self.voxel_size = 8  
-        # if not hasattr(self,"density_threshold"):
-        #     self.density_threshold = density_threshold
-        # if not hasattr(self,"displacement_scale"):
-        #     self.displacement_scale = displacement_scale
-        # point_cloud = self.get_xyz.detach().cpu()
-        # sparse_point_mask = self.downsample_point(point_cloud)
-        # _, low_density_points, new_points, low_density_index = addpoint(point_cloud[sparse_point_mask],density_threshold=self.density_threshold,displacement_scale=self.displacement_scale,iter_pass=0)
-        # sparse_point_mask = sparse_point_mask.to(grads_accum_mask)
-        # low_density_index = low_density_index.to(grads_accum_mask)
-        # if new_points.shape[0] < 100 :
-        #     self.density_threshold /= 2
-        #     self.displacement_scale /= 2
-        #     print("reduce diplacement_scale to: ",self.displacement_scale)
-        # global_mask = torch.zeros((point_cloud.shape[0]), dtype=torch.bool).to(grads_accum_mask)
-        # global_mask[sparse_point_mask] = low_density_index
-        # selected_pts_mask_grow = torch.logical_and(global_mask, grads_accum_mask)
-        # print("降采样点云:",sparse_point_mask.sum(),"选中的稀疏点云：",global_mask.sum(),"梯度累计点云：",grads_accum_mask.sum(),"选中增长点云：",selected_pts_mask_grow.sum())
         # Extract points that satisfy the gradient condition
         selected_pts_mask = torch.logical_and(grads_accum_mask,
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
@@ -487,16 +461,8 @@ class GaussianModel:
         new_rotation = self._rotation[selected_pts_mask]
         new_deformation_table = self._deformation_table[selected_pts_mask]
         # if opt.add_point:
-        # selected_xyz, grow_xyz = self.add_point_by_mask(selected_pts_mask_grow.to(self.get_xyz.device), self.displacement_scale)
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation, new_deformation_table)
-        # print("被动增加点云：",selected_xyz.shape[0])
-        # print("主动增加点云：",selected_pts_mask.sum())
-        # if model_path is not None and iteration is not None:
-        #     point = combine_pointcloud(self.get_xyz.detach().cpu().numpy(), new_xyz.detach().cpu().numpy(), selected_xyz.detach().cpu().numpy())
-        #     write_path = os.path.join(model_path,"add_point_cloud")
-        #     os.makedirs(write_path,exist_ok=True)
-        #     o3d.io.write_point_cloud(os.path.join(write_path,f"iteration_{stage}{iteration}.ply"),point)
-        #     print("write output.")
+        
     @property
     def get_aabb(self):
         return self._deformation.get_aabb
@@ -512,23 +478,12 @@ class GaussianModel:
         mask_d = mask_c.all(dim=1)
         final_point = final_point[mask_d]
     
-        # while (mask_d.sum()/final_point.shape[0])<0.5:
-        #     perturb/=2
-        #     displacements = torch.randn(selected_point.shape[0], 3).to(selected_point) * perturb
-        #     final_point = selected_point + displacements
-        #     mask_a = final_point<xyz_max 
-        #     mask_b = final_point>xyz_min
-        #     mask_c = mask_a & mask_b
-        #     mask_d = mask_c.all(dim=1)
-        #     final_point = final_point[mask_d]
-        return final_point, mask_d    
+        return final_point, mask_d
+        
     def add_point_by_mask(self, selected_pts_mask, perturb=0):
         selected_xyz = self._xyz[selected_pts_mask] 
         new_xyz, mask = self.get_displayment(selected_xyz, self.get_xyz.detach(),perturb)
-        # displacements = torch.randn(selected_xyz.shape[0], 3).to(self._xyz) * perturb
 
-        # new_xyz = selected_xyz + displacements
-        # - 0.001 * self._xyz.grad[selected_pts_mask]
         new_features_dc = self._features_dc[selected_pts_mask][mask]
         new_features_rest = self._features_rest[selected_pts_mask][mask]
         new_opacities = self._opacity[selected_pts_mask][mask]
@@ -589,6 +544,7 @@ class GaussianModel:
             os.makedirs(write_path,exist_ok=True)
             o3d.io.write_point_cloud(os.path.join(write_path,f"iteration_{stage}{iteration}.ply"),point)
         return
+    
     def prune(self, max_grad, min_opacity, extent, max_screen_size):
         prune_mask = (self.get_opacity < min_opacity).squeeze()
 
@@ -626,12 +582,10 @@ class GaussianModel:
     def add_densification_stats(self, viewspace_point_tensor, update_filter):
         self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor[update_filter,:2], dim=-1, keepdim=True)
         self.denom[update_filter] += 1
+        
     @torch.no_grad()
     def update_deformation_table(self, means3D, pc):
         
-        # print("origin deformation point nums:",self._deformation_table.sum())
-        # self._deformation_table = torch.gt(self._deformation_accum.max(dim=-1).values/100, threshold)
-        mask = self.distill_net(means3D, pc)
         self._deformation_table = mask > min(torch.quantile(mask, 0.7), self.mask_threshold)
         return mask
     
@@ -645,6 +599,7 @@ class GaussianModel:
                     if weight.grad.mean() != 0:
                         print(name," :",weight.grad.mean(), weight.grad.min(), weight.grad.max())
         print("-"*50)
+        
     def _plane_regulation(self):
         multi_res_grids = self._deformation.deformation_net.grid.grids
         total = 0
@@ -657,6 +612,7 @@ class GaussianModel:
             for grid_id in time_grids:
                 total += compute_plane_smoothness(grids[grid_id])
         return total
+    
     def _time_regulation(self):
         multi_res_grids = self._deformation.deformation_net.grid.grids
         total = 0
@@ -669,6 +625,7 @@ class GaussianModel:
             for grid_id in time_grids:
                 total += compute_plane_smoothness(grids[grid_id])
         return total
+    
     def _l1_regulation(self):
                 # model.grids is 6 x [1, rank * F_dim, reso, reso]
         multi_res_grids = self._deformation.deformation_net.grid.grids

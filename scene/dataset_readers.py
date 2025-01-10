@@ -15,7 +15,6 @@ from PIL import Image
 from typing import NamedTuple
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
     read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
-from scene.hyper_loader import Load_hyper_data, format_hyper_data
 import torchvision.transforms as transforms
 import copy
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
@@ -360,36 +359,6 @@ def format_infos(dataset,split):
 
     return cameras
 
-def readHyperDataInfos(datadir,use_bg_points,eval):
-    train_cam_infos = Load_hyper_data(datadir,0.5,use_bg_points,split ="train")
-    test_cam_infos = Load_hyper_data(datadir,0.5,use_bg_points,split="test")
-
-    train_cam = format_hyper_data(train_cam_infos,"train")
-    max_time = train_cam_infos.max_time
-    video_cam_infos = copy.deepcopy(test_cam_infos)
-    video_cam_infos.split="video"
-
-    ply_path = os.path.join(datadir, "points.npy")
-
-    xyz = np.load(ply_path,allow_pickle=True)
-    xyz -= train_cam_infos.scene_center
-    xyz *= train_cam_infos.coord_scale
-    xyz = xyz.astype(np.float32)
-    shs = np.random.random((xyz.shape[0], 3)) / 255.0
-    pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((xyz.shape[0], 3)))
-
-    nerf_normalization = getNerfppNorm(train_cam)
-
-    scene_info = SceneInfo(point_cloud=pcd,
-                           train_cameras=train_cam_infos,
-                           test_cameras=test_cam_infos,
-                           video_cameras=video_cam_infos,
-                           nerf_normalization=nerf_normalization,
-                           ply_path=ply_path,
-                           maxtime=max_time
-                           )
-
-    return scene_info
 
 def format_render_poses(poses,data_infos):
     cameras = []
@@ -450,8 +419,6 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     num_pts = 2000
     print(f"Generating random point cloud ({num_pts})...")
     threshold = 3
-    # xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
-    # xyz_min = np.array([-1.5*threshold, -1.5*threshold, -3*threshold])
     xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
     xyz_min = np.array([-1.5*threshold, -1.5*threshold, -1.5*threshold])
     # We create random points inside the bounds of the synthetic Blender scenes
@@ -491,21 +458,17 @@ def readEndoNeRFInfo(datadir, use_bg_points, eval, use_pretrain=True):
     )
     train_cam_infos = endo_dataset.format_infos(split="train")
     test_cam_infos = endo_dataset.format_infos(split="test")
-    video_cam_infos = endo_dataset.format_infos(split="video")
-    
+    # video_cam_infos = endo_dataset.format_infos(split="video")
+    video_cam_infos = None
     # get normalizations
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
     # initialize sparse point clouds
     ply_path = os.path.join(datadir, "points3d.ply")
-    # xyz, rgb, normals = endo_dataset.get_sparse_pts()
     if use_pretrain:
         xyz, rgb, normals = endo_dataset.get_pretrain_pcd()
     else:
         num_pcd = int(endo_dataset.H * endo_dataset.W)
-        # xyz = np.stack([np.arange(-100, 100, step=200/num_pcd), 
-        #                 np.arange(-100, 100, step=200/num_pcd), 
-        #                 np.arange(-100, 100, step=200/num_pcd)], axis=1)
         
         xyz = np.stack([np.arange(-50, 50, step=100/num_pcd), 
                         np.arange(-50, 50, step=100/num_pcd), 
@@ -578,7 +541,6 @@ sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
     "Blender" : readNerfSyntheticInfo,
     "dynerf" : readdynerfInfo,
-    "nerfies": readHyperDataInfos,  # NeRFies & HyperNeRF dataset proposed by [https://github.com/google/hypernerf/releases/tag/v0.1]
     "endonerf": readEndoNeRFInfo,
     "scared": readScaredInfo
 }

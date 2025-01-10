@@ -8,10 +8,9 @@ import numpy as np
 
 import copy
 @torch.no_grad()
-def render_training_image(scene, gaussians, viewpoints, render_func, pipe, background, stage, iteration, time_now, dataset_type, multi_scale):
+def render_training_image(scene, gaussians, viewpoints, render_func, pipe, background, stage, iteration, time_now, dataset_type):
     def render(gaussians, viewpoint, path, scaling, cam_type):
-        # scaling_copy = gaussians._scaling
-        render_pkg = render_func(viewpoint, gaussians, pipe, background, stage=stage, cam_type=cam_type, multi_scale=multi_scale)
+        render_pkg = render_func(viewpoint, gaussians, pipe, background, stage=stage, cam_type=cam_type)
         label1 = f"stage:{stage},iter:{iteration}"
         times =  time_now/60
         if times < 1:

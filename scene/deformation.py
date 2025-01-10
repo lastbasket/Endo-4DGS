@@ -11,8 +11,8 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from utils.graphics_utils import apply_rotation, batch_quaternion_multiply
 from scene.hexplane import HexPlaneField
-from scene.grid import DenseGrid
-# from scene.grid import HashHexPlane
+
+
 class Deformation(nn.Module):
     def __init__(self, D=8, W=256, input_ch=27, input_ch_time=9, grid_pe=0, skips=[], args=None):
         super(Deformation, self).__init__()
@@ -26,9 +26,6 @@ class Deformation(nn.Module):
         self.grid = HexPlaneField(args.bounds, args.kplanes_config, args.multires)
         
         self.args = args
-        # self.args.empty_voxel=True
-        if self.args.empty_voxel:
-            self.empty_voxel = DenseGrid(channels=1, world_size=[64,64,64])
         if self.args.static_mlp:
             self.static_mlp = nn.Sequential(nn.ReLU(),nn.Linear(self.W,self.W),nn.ReLU(),nn.Linear(self.W, 1))
         
@@ -194,17 +191,10 @@ class deform_network(nn.Module):
         points = self.deformation_net(points)
         return points
     
-    def forward_dynamic(self, point, scales=None, rotations=None, opacity=None, shs=None, times_sel=None):
-        # times_emb = poc_fre(times_sel, self.time_poc)
-        
-        # torch.Size([327680, 63]) [26/02 23:57:43]
-        # torch.Size([327680, 15]) [26/02 23:57:43]
-        # torch.Size([327680, 20]) [26/02 23:57:43]
+    def forward_dynamic(self, point, scales=None, rotations=None, opacity=None, shs=None, times_sel=None):        
         point_emb = poc_fre(point, self.pos_poc)
         scales_emb = poc_fre(scales, self.rotation_scaling_poc)
         rotations_emb = poc_fre(rotations, self.rotation_scaling_poc)
-        # time_emb = poc_fre(times_sel, self.time_poc)
-        # times_feature = self.timenet(time_emb)
         means3D, scales, rotations, opacity, shs = self.deformation_net(point_emb,
                                                 scales_emb,
                                                 rotations_emb,
@@ -220,11 +210,10 @@ class deform_network(nn.Module):
 
 def initialize_weights(m):
     if isinstance(m, nn.Linear):
-        # init.constant_(m.weight, 0)
         init.xavier_uniform_(m.weight,gain=1)
         if m.bias is not None:
             init.xavier_uniform_(m.weight,gain=1)
-            # init.constant_(m.bias, 0)
+            
 def poc_fre(input_data, poc_buf):
 
     input_data_emb = (input_data.unsqueeze(-1) * poc_buf).flatten(-2)
