@@ -44,16 +44,18 @@ def process_one(dir_name):
             continue
 
         h, w, c = frame.shape
-        right = torch.from_numpy(frame[0:h//2, :, :]).permute(2,0,1)
-        left = torch.from_numpy(frame[h//2:, :, :]).permute(2,0,1)
+        left = torch.from_numpy(cv2.cvtColor(frame[0:h//2, :, :], cv2.COLOR_BGR2RGB)).permute(2,0,1).float()
+        right = torch.from_numpy(cv2.cvtColor(frame[h//2:, :, :], cv2.COLOR_BGR2RGB)).permute(2,0,1).float()
         left_calib, right_calib = rect(left, right)
         count_tring = str(count).rjust(6, '0')
         left_path = os.path.join(data_dir, f'images_{split}/{count_tring}.png')
         right_path = os.path.join(data_dir, f'images_right_{split}/{count_tring}.png')
         # dis_path = os.path.join(data_dir, f'disparity/{count_tring}.png')
 
-        left_calib = left_calib.permute(1,2,0).numpy()
-        right_calib = right_calib.permute(1,2,0).numpy()
+        left_calib = cv2.resize(left_calib.permute(1,2,0).numpy(), (w//2, h//4))
+        left_calib = cv2.cvtColor(left_calib, cv2.COLOR_RGB2BGR).astype(np.uint8)
+        right_calib = cv2.resize(right_calib.permute(1,2,0).numpy(), (w//2, h//4))
+        right_calib = cv2.cvtColor(right_calib, cv2.COLOR_RGB2BGR).astype(np.uint8)
 
         # stereo = cv2.StereoBM_create(numDisparities=16, blockSize=15)
         # left_gray = cv2.cvtColor(left_calib, cv2.COLOR_BGR2GRAY)
