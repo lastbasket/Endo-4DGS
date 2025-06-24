@@ -21,7 +21,7 @@ from utils.sh_utils import RGB2SH
 
 
 def render(viewpoint_camera, gs, pipe, bg_color: torch.Tensor, scaling_modifier = 1.0, \
-        override_color = None, stage="fine", cam_type=None, iteration=0):
+        override_color = None, stage="fine", cam_type=None, iteration=0, mode='train'):
     """
     Render the scene. 
     
@@ -59,7 +59,8 @@ def render(viewpoint_camera, gs, pipe, bg_color: torch.Tensor, scaling_modifier 
     
     
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
-    norm_rasterizer = GaussianRasterizer(raster_settings=raster_settings)
+    if mode == 'train':
+        norm_rasterizer = GaussianRasterizer(raster_settings=raster_settings)
     
     # add deformation to each points
     means2D = screenspace_points
@@ -112,28 +113,34 @@ def render(viewpoint_camera, gs, pipe, bg_color: torch.Tensor, scaling_modifier 
         scales = scales_final,
         rotations = rotations_final)
     
-    normal = get_smallest_axis(rotations_final, scales_final)
-    normal_sh = RGB2SH((normal+1)/2)
-    
-    
-    normal_shs = shs_final.clone()
-    normal_shs[:, 0, :3] = normal_sh
-    
-    
-    normal_map, rad_norm, dep_norm, weight_norm = rasterizer(
-        means3D = means3D_final,
-        means2D = means2D,
-        shs = normal_shs,
-        opacities = opacity_final,
-        scales = scales_final,
-        rotations = rotations_final)
-    
-    re_dict = {"render": rendered_image,
-            "viewspace_points": screenspace_points,
-            "radii": radii,
-            "depth": depth.unsqueeze(0),
-            'normal': normal_map,
-            'confidence': weight.unsqueeze(0)}
+    if mode =='train':
+        normal = get_smallest_axis(rotations_final, scales_final)
+        normal_sh = RGB2SH((normal+1)/2)
+        
+        normal_shs = shs_final.clone()
+        normal_shs[:, 0, :3] = normal_sh
+        
+        normal_map, rad_norm, dep_norm, weight_norm = rasterizer(
+            means3D = means3D_final,
+            means2D = means2D,
+            shs = normal_shs,
+            opacities = opacity_final,
+            scales = scales_final,
+            rotations = rotations_final)
+        
+        re_dict = {"render": rendered_image,
+                "viewspace_points": screenspace_points,
+                "radii": radii,
+                "depth": depth.unsqueeze(0),
+                'normal': normal_map,
+                'confidence': weight.unsqueeze(0)}
+    else:
+        
+        re_dict = {"render": rendered_image,
+                "viewspace_points": screenspace_points,
+                "radii": radii,
+                "depth": depth.unsqueeze(0)}
+        
     
     return re_dict
 

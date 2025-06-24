@@ -60,13 +60,12 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
             if idx == 0 and i == 0:
                 time1 = time()
-            rendering = render(view, gaussians, pipeline, background)
+            rendering = render(view, gaussians, pipeline, background, mode='test')
             if i == test_times-1:
                 render_depths.append(rendering["depth"])
                 render_images.append(rendering["render"].cpu())
-                render_normal.append(((rendering['normal']+1)/2).cpu())
-                confidence.append(rendering['confidence'].cpu())
-
+                # render_normal.append(((rendering['normal']+1)/2).cpu())
+                # confidence.append(rendering['confidence'].cpu())
                 if name in ["train", "test", "video"]:
                     gt = view.original_image[0:3, :, :]
                     gt_list.append(gt)
@@ -75,8 +74,8 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
                     gt_depth = view.depth
                     gt_depths.append(gt_depth)
 
-    time2=time()
-    print("FPS:",(len(views)-1)*test_times/(time2-time1))
+        time2=time()
+        print("FPS:",(len(views)-1)*test_times/(time2-time1))
     
     # import pdb; pdb.set_trace()
     count = 0
@@ -86,19 +85,19 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
             count+=1
             
-    count = 0
-    print("writing confidence.")
-    if len(confidence) != 0:
-        for image in tqdm(confidence):
-            torchvision.utils.save_image(image, os.path.join(confidence_path, '{0:05d}'.format(count) + ".png"))
-            count +=1
+    # count = 0
+    # print("writing confidence.")
+    # if len(confidence) != 0:
+    #     for image in tqdm(confidence):
+    #         torchvision.utils.save_image(image, os.path.join(confidence_path, '{0:05d}'.format(count) + ".png"))
+    #         count +=1
             
-    count = 0
-    print("writing rendering normal.")
-    if len(render_normal) != 0:
-        for image in tqdm(render_normal):
-            torchvision.utils.save_image(image, os.path.join(normal_path, '{0:05d}'.format(count) + ".png"))
-            count +=1
+    # count = 0
+    # print("writing rendering normal.")
+    # if len(render_normal) != 0:
+    #     for image in tqdm(render_normal):
+    #         torchvision.utils.save_image(image, os.path.join(normal_path, '{0:05d}'.format(count) + ".png"))
+    #         count +=1
             
     count = 0
     print("writing rendering images.")
@@ -122,21 +121,23 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             image = image.float() / 255.0
             torchvision.utils.save_image(image, os.path.join(depth_path, '{0:05d}'.format(count) + ".png"))
             count += 1
+            
     
     count = 0
     print("writing gt depth images.")
     if len(gt_depths) != 0:
         for image in tqdm(gt_depths):
-            image = image.float() / 255.0
+            image = image.float() / 255.0            
             torchvision.utils.save_image(image, os.path.join(gtdepth_path, '{0:05d}'.format(count) + ".png"))
             count += 1
             
+            
     render_array = torch.stack(render_images, dim=0).permute(0, 2, 3, 1)
-    render_array = (render_array*255).clip(0, 255)
+    render_array = (render_array*255).clip(0, 255).byte()
     imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), 'ours_video.mp4'), render_array, fps=30, quality=8)
     
     gt_array = torch.stack(gt_list, dim=0).permute(0, 2, 3, 1)
-    gt_array = (gt_array*255).clip(0, 255)
+    gt_array = (gt_array*255).clip(0, 255).byte()
     imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), 'gt_video.mp4'), gt_array, fps=30, quality=8)
                     
     FoVy, FoVx, height, width = view.FoVy, view.FoVx, view.image_height, view.image_width
