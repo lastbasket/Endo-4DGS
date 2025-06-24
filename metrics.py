@@ -15,8 +15,6 @@ from PIL import Image
 import torch
 import torchvision.transforms.functional as tf
 from utils.loss_utils import ssim
-# from lpipsPyTorch import lpips
-# import lpips
 from utils.image_utils import lpips_score, ssim
 import json
 from tqdm import tqdm
