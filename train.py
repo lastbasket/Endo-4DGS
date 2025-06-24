@@ -33,7 +33,7 @@ from torch.utils.data import DataLoader
 from utils.timer import Timer
 from utils.loader_utils import FineSampler, get_stamp_list
 from utils.scene_utils import render_training_image
-from utils.loss_utils import GradL1Loss, confidence_loss
+from utils.loss_utils import GradL1Loss, confidence_loss, TV_loss
 from utils.graphics_utils import get_pseudo_normal
 from time import time
 import copy
@@ -257,7 +257,7 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
         
         if use_smooth:
             grad_weight=hyper.depth_weight
-            sm_loss = grad_loss(depth_tensor, gt_depth_tensor, mask=mask_tensor) * grad_weight
+            sm_loss = (grad_loss(depth_tensor, gt_depth_tensor, mask=mask_tensor)) * grad_weight
             loss += sm_loss
             
         if use_normal:
@@ -278,9 +278,9 @@ def scene_reconstruction(mp, opt, hyper, pipe, testing_iterations, saving_iterat
             loss += confidence_loss_dep
             
         if stage == "fine" and hyper.time_smoothness_weight != 0:
-            # tv_loss = 0
             tv_loss = gaussians.compute_regulation(hyper.time_smoothness_weight, \
-                hyper.l1_time_planes, hyper.plane_tv_weight)
+                hyper.l1_time_planes, hyper.plane_tv_weight) + \
+                    +(TV_loss(depth_tensor)+TV_loss(image_tensor))*hyper.depth_weight
             loss += tv_loss
             
         if opt.lambda_dssim != 0:
@@ -534,7 +534,7 @@ if __name__ == "__main__":
     network_gui.init(args.ip, args.port)
     
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, 
+    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations,
             args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
     # All done
     print("\nTraining complete.")

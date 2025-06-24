@@ -223,18 +223,19 @@ class EndoNeRF_Dataset(object):
             self.image_times.append(idx / poses.shape[0])
         
         # get paths of images, depths, masks, etc.
-        agg_fn = lambda filetype: sorted(glob.glob(os.path.join(self.root_dir, filetype, "*.png")))
+        agg_fn = lambda filetype: sorted(glob.glob(os.path.join(self.root_dir, filetype, "*.png")) \
+            +glob.glob(os.path.join(self.root_dir, filetype, "*.npy")))
         self.image_paths = agg_fn("images")
         if self.stereomis:
             self.depth_paths = agg_fn('dep_png')
         else:
-            self.depth_paths = agg_fn("depth")
-        self.masks_paths = agg_fn("masks")
+            self.depth_paths = agg_fn("depth_dam")
+        self.mask_paths = agg_fn("masks")
 
 
         assert len(self.image_paths) == poses.shape[0], "the number of images should equal to the number of poses"
+        print(len(self.depth_paths))
         assert len(self.depth_paths) == poses.shape[0], "the number of depth images should equal to number of poses"
-        assert len(self.masks_paths) == poses.shape[0], "the number of masks should equal to the number of poses"
         
     def format_infos(self, split):
         cameras = []
@@ -245,20 +246,27 @@ class EndoNeRF_Dataset(object):
             idxs = self.video_idxs
         
         for idx in tqdm(idxs):
-            # mask
-            mask_path = self.masks_paths[idx]
-            mask = Image.open(mask_path)
-            if self.stereomis:
-                mask = np.array(mask)/255
-                mask = mask[..., 0]
-            else:
-                mask = 1 - np.array(mask) / 255.0
                 
             # color
             color = (np.array(Image.open(self.image_paths[idx]))/255.0).astype(np.float32)
             # depth
             # depth_es = 1 / depth_es * 1000
             depth_es = np.load(self.image_paths[idx].replace('images', 'depth_dam').replace('png', 'npy'))
+            # mask
+            if len(self.mask_paths) == 0:
+                if self.stereomis:
+                    mask = np.ones_like(color[..., 0])
+                else:
+                    mask = np.zeros_like(color[..., 0])
+            else:
+                mask_path = self.mask_paths[idx]
+                mask = Image.open(mask_path)
+            if self.stereomis:
+                mask = np.array(mask)/255
+                mask = mask[..., 0]
+            else:
+                mask = 1 - np.array(mask) / 255.0
+            # Init Point Cloud
             pc = None
             if idx == 0:
                 self.init_depth = depth_es
@@ -297,25 +305,6 @@ class EndoNeRF_Dataset(object):
                                                 mask=mask)
         normals = np.zeros((init_pt_cld.shape[0], 3))
         return init_pt_cld, cols, normals
-    
-    def get_pretrain_pcd_old(self):
-        i, j = np.meshgrid(np.linspace(0, self.img_wh[0]-1, self.img_wh[0]), 
-                           np.linspace(0, self.img_wh[1]-1, self.img_wh[1]))
-        X_Z = (i-self.img_wh[0]/2) / self.focal[0]
-        Y_Z = (j-self.img_wh[1]/2) / self.focal[1]
-        Z = self.init_depth
-        X, Y = X_Z * Z, Y_Z * Z
-        # Z = -Z
-        # X = -X
-        mask = self.init_mask.reshape(-1, 1)
-        pts_cam = np.stack((X, Y, Z), axis=-1).reshape(-1, 3)*mask
-        color = self.init_img.reshape(-1, 3)*mask
-        normals = np.zeros((pts_cam.shape[0], 3))
-        R, T = self.image_poses[0]
-        c2w = self.get_camera_poses((R, T))
-        pts = self.transform_cam2cam(pts_cam, c2w)
-
-        return pts, color, normals
          
     def get_camera_poses(self, pose_tuple):
         R, T = pose_tuple

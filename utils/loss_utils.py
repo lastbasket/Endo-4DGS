@@ -22,6 +22,12 @@ from utils.general_utils import build_rotation
 KEY_OUTPUT = 'metric_depth'
 
 
+def TV_loss(x, mask=None):
+    B, C, H, W = x.shape
+    tv_h = torch.abs(x[:,:,1:,:] - x[:,:,:-1,:]).sum()
+    tv_w = torch.abs(x[:,:,:,1:] - x[:,:,:,:-1]).sum()
+    return (tv_h + tv_w) / (B * C * H * W)
+
 
 def get_smallest_axis(rot, scaling, return_idx=False):
         """Returns the smallest axis of the Gaussians.

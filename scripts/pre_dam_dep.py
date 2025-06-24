@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 session = ort.InferenceSession(
-            'submodules/depth_anything/weights/depth_anything_vits14.onnx', 
+            'submodules/depth_anything/weights/depth_anything_vitb14.onnx', 
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
         )
 
@@ -22,7 +22,11 @@ def get_depth(path):
 
     norm_img = np.transpose(normalize_img(color, mean, std), (2, 0, 1))[None].astype(np.float32)
     depth_es = session.run(None, {"image": norm_img})[0][0]
-    depth_es = 1 / depth_es * 1000
+    depth_es = depth_es
+    depth_es[depth_es!=0] = 1 / depth_es[depth_es!=0] * 1000
+    close_depth = np.percentile(depth_es[depth_es!=0], 5)
+    inf_depth = np.percentile(depth_es, 95)
+    depth_es = np.clip(depth_es, close_depth, inf_depth)
     return depth_es
 
 

@@ -5,7 +5,8 @@ from torch.utils.data import TensorDataset, random_split
 from tqdm import tqdm
 import open3d as o3d
 import numpy as np
-from torch_cluster import grid_cluster
+
+
 def voxel_down_sample_custom(points, voxel_size):
     # 将点云归一化到体素网格
     voxel_grid = torch.floor(points / voxel_size)
@@ -47,14 +48,7 @@ def downsample_point_cloud_open3d(points, voxel_size):
     # 获取下采样后的点云矩阵
 
     return torch.tensor(downsampled_points)
-def downsample_point_cloud_cluster(points, voxel_size):
-    # 创建一个点云对象
-    cluster = grid_cluster(points, size=torch.tensor([1,1,1]))
 
-    # 获取下采样后的点云矩阵
-    # downsampled_points = np.asarray(downsampled_pcd.points)
-
-    return cluster, points
 import torch
 from sklearn.neighbors import NearestNeighbors
 

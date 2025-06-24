@@ -25,19 +25,27 @@
 ## Environments
 
 We build the Python environment using [Anaconda](https://www.anaconda.com/download/):
+1. Install the CUDA toolkit on ubuntu following [this](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html), and then:
+```shell
+export PATH=/usr/local/cuda-11.8/bin:${PATH}
+export LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda-11.8
+```
+
+2. Install the Python environment
 ```shell
 git clone https://github.com/lastbasket/Endo-4DGS.git
 cd Endo-4DGS
 git submodule update --init --recursive
-conda create -n ED4DGS python=3.7 
+conda create -n ED4DGS python=3.8
 conda activate ED4DGS
 
 pip install -r requirements.txt
-pip install -e submodules/depth-diff-gaussian-rasterization
+pip install -e submodules/diff-gaussian-rasterization-depth
 pip install -e submodules/simple-knn
 pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118
+pip install torchmetrics
 ```
-
 
 ## Datasets
 We used two datasets for training and evaluation.

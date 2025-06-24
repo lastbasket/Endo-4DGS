@@ -10,3 +10,4 @@ onnx
 onnxruntime-gpu
 opencv-python
 tqdm
+imageio
