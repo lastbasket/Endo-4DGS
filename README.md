@@ -121,6 +121,12 @@ Download [pretrained_gaussians](https://mycuhk-my.sharepoint.com/:u:/g/personal/
 python render.py --model_path pretrained_gaussians/endonerf/pulling --pc --skip_video --skip_train --configs arguments/endonerf.py
 ```
 
+## Related Works
+Welcome to follow our related works:
+- [SurgTPGS](https://lastbasket.github.io/MICCAI-2025-SurgTPGS/): Vison-Language Surgical 3D Scene Understanding
+- [Endo-4DGX](https://lastbasket.github.io/MICCAI-2025-Endo-4DGX/): Robust Endoscopic Gaussian Splatting with Illumination Correction
+- [Endo2DTAM](https://github.com/lastbasket/Endo-2DTAM): Gaussian Splatting SLAM for Endoscopic Scene
+
 ## Cite
 ```
 @inproceedings{huang2024endo,
